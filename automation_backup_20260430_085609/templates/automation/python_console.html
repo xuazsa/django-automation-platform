@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Python 在线执行器</title>
+    <style>
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 20px;
+            background: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: #007acc;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            color: white;
+        }
+        .editor-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .code-area {
+            flex: 1;
+        }
+        .code-area textarea {
+            width: 100%;
+            height: 400px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            background: #fff;
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            resize: vertical;
+        }
+        .output-area {
+            flex: 1;
+        }
+        .output-box {
+            width: 100%;
+            height: 400px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: auto;
+            padding: 10px;
+            font-size: 14px;
+        }
+        .output-box pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            color: #d32f2f;
+        }
+        .success {
+            color: #2e7d32;
+        }
+        .plot-image {
+            max-width: 100%;
+            margin-top: 10px;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        .shortcuts {
+            margin-top: 20px;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .example {
+            background: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin: 5px;
+            cursor: pointer;
+            display: inline-block;
+            border: 1px solid #ddd;
+        }
+        .example:hover {
+            background: #e0e0e0;
+        }
+        h3 {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐍 Python 在线执行器</h1>
+            <p>输入 Python 代码，点击执行查看结果</p>
+        </div>
+        
+        <div class="editor-section">
+            <div class="code-area">
+                <h3>📝 代码编辑器</h3>
+                <textarea id="code" placeholder='print("Hello Python!")&#10;&#10;for i in range(3):&#10;    print(f"第{i+1}次")'>import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(19680801)
+
+dt = 0.01
+t = np.arange(0, 30, dt)
+nse1 = np.random.randn(len(t))
+nse2 = np.random.randn(len(t))
+
+s1 = np.sin(2 * np.pi * 10 * t) + nse1
+s2 = np.sin(2 * np.pi * 10 * t) + nse2
+
+fig, axs = plt.subplots(2, 1)
+axs[0].plot(t, s1, t, s2)
+axs[0].set_xlim(0, 2)
+axs[0].set_xlabel('time')
+axs[0].set_ylabel('s1 and s2')
+axs[0].grid(True)
+
+cxy, f = axs[1].cohere(s1, s2, 256, 1. / dt)
+axs[1].set_ylabel('coherence')
+
+fig.tight_layout()
+plt.show()</textarea>
+                <button onclick="executeCode()">▶ 执行代码 (Ctrl+Enter)</button>
+            </div>
+            
+            <div class="output-area">
+                <h3>📊 执行结果</h3>
+                <div id="output" class="output-box">
+                    <pre>点击执行按钮运行代码...</pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="shortcuts">
+            <strong>🎯 快捷操作：</strong>
+            <div style="margin-top: 10px;">
+                <span class="example" onclick="insertExample('basic')">简单输出</span>
+                <span class="example" onclick="insertExample('loop')">循环</span>
+                <span class="example" onclick="insertExample('function')">函数</span>
+                <span class="example" onclick="insertExample('list')">列表操作</span>
+                <span class="example" onclick="insertExample('dict')">字典操作</span>
+                <span class="example" onclick="insertExample('math')">数学计算</span>
+                <span class="example" onclick="insertExample('plot')">绘图示例</span>
+            </div>
+            <div style="margin-top: 10px;">
+                💡 提示：支持 matplotlib 绘图，图片会自动显示
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function executeCode() {
+            const code = document.getElementById('code').value;
+            const outputDiv = document.getElementById('output');
+            
+            outputDiv.innerHTML = '<pre>⏳ 执行中...</pre>';
+            
+            fetch('/auto/api/run_python/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({code: code})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let html = '<pre class="success">' + escapeHtml(data.output) + '</pre>';
+                    if (data.image) {
+                        html += '<img src="data:image/png;base64,' + data.image + '" class="plot-image">';
+                    }
+                    outputDiv.innerHTML = html;
+                } else {
+                    outputDiv.innerHTML = '<pre class="error">❌ 错误:\\n' + escapeHtml(data.error) + '</pre>';
+                }
+            })
+            .catch(error => {
+                outputDiv.innerHTML = '<pre class="error">请求失败: ' + error + '</pre>';
+            });
+        }
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function insertExample(type) {
+            const examples = {
+                basic: 'print("Hello World")\n\nname = "Python"\nprint(f"欢迎使用 {name}")',
+                loop: 'for i in range(5):\n    print(f"第 {i+1} 次循环")\n\n# 列表推导式\nsquares = [x*x for x in range(10)]\nprint(f"平方数: {squares}")',
+                function: 'def greet(name):\n    return f"你好, {name}!"\n\ndef fibonacci(n):\n    a, b = 0, 1\n    for i in range(n):\n        yield a\n        a, b = b, a + b\n\nprint(greet("开发者"))\nprint("\\n斐波那契数列:")\nfor num in fibonacci(10):\n    print(num, end=" ")',
+                list: '# 列表操作\nnumbers = [1, 2, 3, 4, 5]\nprint(f"原始列表: {numbers}")\nnumbers.append(6)\nprint(f"添加后: {numbers}")\nnumbers.reverse()\nprint(f"反转后: {numbers}")\n\n# 列表筛选\neven = [x for x in numbers if x % 2 == 0]\nprint(f"偶数: {even}")',
+                dict: '# 字典操作\nperson = {\n    "name": "张三",\n    "age": 25,\n    "city": "北京"\n}\nprint(f"个人信息: {person}")\nperson["email"] = "zhang@example.com"\nprint(f"添加邮箱: {person}")',
+                math: 'import math\n\n# 数学计算\nprint(f"π = {math.pi}")\nprint(f"e = {math.e}")\nprint(f"sin(π/2) = {math.sin(math.pi/2)}")\nprint(f"10的阶乘 = {math.factorial(10)}")\n\n# 复数运算\nc = 3 + 4j\nprint(f"复数 {c} 的模: {abs(c)}")',
+                plot: 'import numpy as np\nimport matplotlib.pyplot as plt\n\n# 简单正弦波\nt = np.linspace(0, 2*np.pi, 100)\ny = np.sin(t)\n\nplt.plot(t, y)\nplt.title("正弦波")\nplt.xlabel("t")\nplt.ylabel("sin(t)")\nplt.grid(True)\nplt.show()'
+            };
+            
+            const textarea = document.getElementById('code');
+            textarea.value = examples[type] || examples.basic;
+        }
+        
+        // Ctrl+Enter 执行
+        document.getElementById('code').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                executeCode();
+            }
+        });
+    </script>
+</body>
+</html>

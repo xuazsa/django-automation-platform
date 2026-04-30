@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>批量执行</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .task-list { list-style: none; padding: 0; }
+        .task-list li { margin: 10px 0; }
+        .btn { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>批量执行任务</h1>
+    <form method="post">
+        {% csrf_token %}
+        <ul class="task-list">
+            {% for task in tasks %}
+            <li><input type="checkbox" name="task_ids" value="{{ task.id }}"> {{ task.name }} - {{ task.command|truncatechars:50 }}</li>
+            {% empty %}
+            <li>暂无任务</li>
+            {% endfor %}
+        </ul>
+        <button type="submit" class="btn">执行选中任务</button>
+    </form>
+    <p><a href="/auto/tasks/">返回任务列表</a></p>
+</body>
+</html>

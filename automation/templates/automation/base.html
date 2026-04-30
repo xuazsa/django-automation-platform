@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>自动化平台</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .nav { background: #333; padding: 10px; margin-bottom: 20px; }
+        .nav a { color: white; padding: 10px 15px; text-decoration: none; }
+        .nav a:hover { background: #555; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="/auto/switches/">🔄 交换机管理</a>
+        <a href="/admin/">🔧 后台管理</a>
+    </div>
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

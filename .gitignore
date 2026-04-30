@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+myenv/
+*.egg-info/
+dist/
+build/
+
+# Django
+*.log
+db.sqlite3
+.DS_Store
+*.pid
+*.pid.lock
+migrations/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 敏感信息
+.env
+*.pem
+*.key
+
+# 其他
+*.tar.gz
+*.zip
+backup_*.sql

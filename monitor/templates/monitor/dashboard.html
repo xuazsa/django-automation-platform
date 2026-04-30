@@ -1,0 +1,144 @@
+{% extends 'monitor/base.html' %}
+
+{% block content %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #007acc;
+    }
+    .stat-label {
+        color: #666;
+        margin-top: 10px;
+    }
+    .service-status {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    .status-up { background: #28a745; }
+    .status-down { background: #dc3545; }
+    .chart-container {
+        margin: 20px 0;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+
+<h1>系统监控</h1>
+
+<div class="stats-grid" id="stats">
+    <div class="stat-card">
+        <div class="stat-value" id="cpu">-</div>
+        <div class="stat-label">CPU 使用率</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="memory">-</div>
+        <div class="stat-label">内存使用率</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="disk">-</div>
+        <div class="stat-label">磁盘使用率</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="uptime">-</div>
+        <div class="stat-label">运行时间</div>
+    </div>
+</div>
+
+<div class="stats-grid" id="services">
+    <div class="stat-card">
+        <div class="stat-value"><span class="service-status" id="nginx-status"></span> Nginx</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value"><span class="service-status" id="mysql-status"></span> MySQL</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value"><span class="service-status" id="php-status"></span> PHP-FPM</div>
+    </div>
+</div>
+
+<div class="chart-container">
+    <h3>CPU 历史趋势</h3>
+    <canvas id="cpuChart"></canvas>
+</div>
+
+<div class="chart-container">
+    <h3>内存历史趋势</h3>
+    <canvas id="memoryChart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let cpuChart, memoryChart;
+
+async function fetchMetrics() {
+    const response = await fetch('/monitor/api/metrics/');
+    const data = await response.json();
+    
+    document.getElementById('cpu').innerText = data.cpu + '%';
+    document.getElementById('memory').innerText = data.memory + '%';
+    document.getElementById('disk').innerText = data.disk + '%';
+    document.getElementById('uptime').innerText = data.uptime || '--';
+    
+    document.getElementById('nginx-status').className = 'service-status ' + (data.services?.nginx ? 'status-up' : 'status-down');
+    document.getElementById('mysql-status').className = 'service-status ' + (data.services?.mysql ? 'status-up' : 'status-down');
+    document.getElementById('php-status').className = 'service-status ' + (data.services?.php ? 'status-up' : 'status-down');
+}
+
+async function loadHistory() {
+    const response = await fetch('/monitor/api/history/');
+    const data = await response.json();
+    
+    if (cpuChart) cpuChart.destroy();
+    if (memoryChart) memoryChart.destroy();
+    
+    cpuChart = new Chart(document.getElementById('cpuChart'), {
+        type: 'line',
+        data: {
+            labels: data.cpu?.times || [],
+            datasets: [{
+                label: 'CPU %',
+                data: data.cpu?.values || [],
+                borderColor: '#007acc',
+                fill: false
+            }]
+        }
+    });
+    
+    memoryChart = new Chart(document.getElementById('memoryChart'), {
+        type: 'line',
+        data: {
+            labels: data.memory?.times || [],
+            datasets: [{
+                label: 'Memory %',
+                data: data.memory?.values || [],
+                borderColor: '#28a745',
+                fill: false
+            }]
+        }
+    });
+}
+
+fetchMetrics();
+loadHistory();
+setInterval(fetchMetrics, 5000);
+</script>
+{% endblock %}

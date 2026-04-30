@@ -1,0 +1,203 @@
+{% extends 'automation/base.html' %}
+
+{% block content %}
+<h1>🔄 交换机管理</h1>
+
+<div style="margin-bottom: 20px;">
+    <a href="/admin/automation/switch/add/" style="background: #28a745; color: white; padding: 8px 15px; text-decoration: none; border-radius: 4px;">➕ 添加交换机</a>
+    <button onclick="batchSync()" style="background: #17a2b8; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">🔄 批量同步状态</button>
+    <button onclick="batchBackup()" style="background: #ffc107; color: #333; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">💾 批量备份配置</button>
+</div>
+
+<table border="1" cellpadding="10" style="width:100%; border-collapse: collapse; background: white;">
+    <thead style="background: #007acc; color: white;">
+        <tr><th>ID</th><th>设备名称</th><th>IP地址</th><th>厂商</th><th>状态</th><th>最后在线</th><th>操作</th></tr>
+    </thead>
+    <tbody>
+        {% for switch in switches %}
+        <tr>
+            <td>{{ switch.id }}</td>
+            <td><strong>{{ switch.name }}</strong></td>
+            <td>{{ switch.ip_address }}</td>
+            <td>{{ switch.get_vendor_display }}</td>
+            <td style="color: {% if switch.status == 'active' %}green{% else %}red{% endif %};">
+                {% if switch.status == 'active' %}🟢 在线{% elif switch.status == 'offline' %}🔴 离线{% else %}🟡 维护中{% endif %}
+            </td>
+            <td>{{ switch.last_seen|default:"-" }}</td>
+            <td>
+                <button onclick="execCommand({{ switch.id }}, '{{ switch.name }}')" style="background: #007acc; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">▶ 执行命令</button>
+                <button onclick="backupConfig({{ switch.id }})" style="background: #17a2b8; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">💾 备份</button>
+                <button onclick="syncStatus({{ switch.id }})" style="background: #ffc107; color: #333; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">🔄 同步</button>
+                <a href="/admin/automation/switch/{{ switch.id }}/change/" style="background: #6c757d; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px;">✏️ 编辑</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align: center;">暂无交换机，请点击「添加交换机」</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- 命令执行弹窗 -->
+<div id="cmdModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.3); z-index:1000; width:500px;">
+    <h3>执行命令 - <span id="modalSwitchName"></span></h3>
+    <textarea id="cmdInput" rows="3" style="width:100%; font-family:monospace;" placeholder="输入命令，例如：show version"></textarea>
+    <div style="margin-top:10px;">
+        <button onclick="doExec()" style="background:#007acc; color:white; border:none; padding:5px 15px; border-radius:3px;">执行</button>
+        <button onclick="closeModal()" style="background:#6c757d; color:white; border:none; padding:5px 15px; border-radius:3px;">取消</button>
+    </div>
+    <div id="cmdResult" style="display:none; margin-top:10px;">
+        <h4>结果:</h4>
+        <pre id="cmdOutput" style="background:#1e1e1e; color:#d4d4d4; padding:10px; border-radius:4px; overflow:auto; max-height:200px;"></pre>
+    </div>
+</div>
+<div id="modalOverlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:999;" onclick="closeModal()"></div>
+
+<script>
+    let currentSwitchId = null;
+    
+    function execCommand(switchId, switchName) {
+        currentSwitchId = switchId;
+        document.getElementById('modalSwitchName').innerText = switchName;
+        document.getElementById('cmdModal').style.display = 'block';
+        document.getElementById('modalOverlay').style.display = 'block';
+        document.getElementById('cmdResult').style.display = 'none';
+        document.getElementById('cmdInput').value = '';
+    }
+    
+    function closeModal() {
+        document.getElementById('cmdModal').style.display = 'none';
+        document.getElementById('modalOverlay').style.display = 'none';
+    }
+    
+    async function doExec() {
+        const command = document.getElementById('cmdInput').value;
+        if (!command) {
+            alert('请输入命令');
+            return;
+        }
+        
+        const resultDiv = document.getElementById('cmdResult');
+        const outputPre = document.getElementById('cmdOutput');
+        resultDiv.style.display = 'block';
+        outputPre.innerText = '执行中...';
+        
+        try {
+            const response = await fetch('/auto/api/switch/execute/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    switch_id: currentSwitchId,
+                    command: command
+                })
+            });
+            const data = await response.json();
+            outputPre.innerText = data.success ? (data.output || '成功（无输出）') : ('错误: ' + data.error);
+        } catch (err) {
+            outputPre.innerText = '请求失败: ' + err;
+        }
+    }
+    
+    async function backupConfig(switchId) {
+        if (!confirm('确定要备份这台交换机的配置吗？')) return;
+        const btn = event.target;
+        btn.innerText = '备份中...';
+        try {
+            const response = await fetch('/auto/api/switch/backup/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({switch_id: switchId})
+            });
+            const data = await response.json();
+            alert(data.success ? '备份成功！' : '备份失败: ' + data.error);
+        } catch (err) {
+            alert('请求失败: ' + err);
+        } finally {
+            btn.innerText = '💾 备份';
+        }
+    }
+    
+    async function syncStatus(switchId) {
+        const btn = event.target;
+        btn.innerText = '同步中...';
+        try {
+            const response = await fetch('/auto/api/switch/sync/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({switch_id: switchId})
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert(`同步成功！状态: ${data.status}, CPU: ${data.cpu || '-'}%`);
+                location.reload();
+            } else {
+                alert('同步失败: ' + data.error);
+            }
+        } catch (err) {
+            alert('请求失败: ' + err);
+        } finally {
+            btn.innerText = '🔄 同步';
+        }
+    }
+    
+    async function batchSync() {
+        if (!confirm('确定要批量同步所有交换机状态吗？')) return;
+        const btn = event.target;
+        btn.innerText = '同步中...';
+        try {
+            const response = await fetch('/auto/api/switch/scan/', {
+                method: 'POST',
+                headers: {'X-CSRFToken': getCookie('csrftoken')}
+            });
+            const data = await response.json();
+            alert(`扫描完成！在线: ${data.online}, 离线: ${data.offline}`);
+            location.reload();
+        } catch (err) {
+            alert('批量同步失败: ' + err);
+        } finally {
+            btn.innerText = '🔄 批量同步状态';
+        }
+    }
+    
+    async function batchBackup() {
+        if (!confirm('确定要批量备份所有交换机配置吗？')) return;
+        const btn = event.target;
+        btn.innerText = '备份中...';
+        try {
+            const response = await fetch('/auto/api/switch/batch_backup/', {
+                method: 'POST',
+                headers: {'X-CSRFToken': getCookie('csrftoken')}
+            });
+            const data = await response.json();
+            alert(`批量备份完成！成功: ${data.success}, 失败: ${data.failed}`);
+        } catch (err) {
+            alert('批量备份失败: ' + err);
+        } finally {
+            btn.innerText = '💾 批量备份配置';
+        }
+    }
+    
+    function getCookie(name) {
+        let value = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    value = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return value;
+    }
+</script>
+{% endblock %}

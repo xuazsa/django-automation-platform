@@ -1,0 +1,24 @@
+{% extends 'automation/base.html' %}
+
+{% block content %}
+<h1>添加任务</h1>
+<form method="post">
+    {% csrf_token %}
+    <label>任务名称: <input type="text" name="name" required></label><br>
+    <label>任务类型:
+        <select name="task_type">
+            <option value="shell">Shell 命令</option>
+            <option value="python">Python 脚本</option>
+        </select>
+    </label><br>
+    <label>命令: <textarea name="command" rows="5" cols="50" required></textarea></label><br>
+    <label>Cron 表达式: <input type="text" name="cron_expr"></label><br>
+    <label>状态:
+        <select name="status">
+            <option value="active">启用</option>
+            <option value="inactive">禁用</option>
+        </select>
+    </label><br>
+    <button type="submit">保存</button>
+</form>
+{% endblock %}

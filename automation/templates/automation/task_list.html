@@ -1,0 +1,17 @@
+{% extends 'automation/base.html' %}
+
+{% block content %}
+<h1>任务列表</h1>
+<a href="/auto/tasks/create/">添加任务</a>
+<ul>
+{% for task in tasks %}
+    <li>
+        {{ task.name }} ({{ task.get_task_type_display }})
+        <a href="/auto/tasks/run/{{ task.id }}/">执行</a>
+        <a href="/auto/tasks/delete/{{ task.id }}/">删除</a>
+    </li>
+{% empty %}
+    <li>暂无任务</li>
+{% endfor %}
+</ul>
+{% endblock %}

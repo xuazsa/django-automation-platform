@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>任务列表</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #007bff; color: white; }
+        .btn { background: #28a745; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px; }
+        .batch-btn { background: #007bff; padding: 10px 20px; margin-bottom: 20px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <h1>任务列表</h1>
+    <a href="/auto/batch/" class="batch-btn">批量执行</a>
+    <a href="/auto/dashboard/" style="margin-left: 20px;">返回仪表盘</a>
+    <table>
+        <tr><th>ID</th><th>任务名</th><th>类型</th><th>命令</th><th>状态</th><th>操作</th></tr>
+        {% for task in tasks %}
+        <tr>
+            <td>{{ task.id }}</td>
+            <td>{{ task.name }}</td>
+            <td>{{ task.get_task_type_display }}</td>
+            <td>{{ task.command|truncatechars:50 }}</td>
+            <td>{{ task.status }}</td>
+            <td><a href="/auto/run/{{ task.id }}/" class="btn">执行</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">暂无任务，请去后台添加</td></tr>
+        {% endfor %}
+    </table>
+    <p><a href="/admin/automation/task/">后台管理任务</a></p>
+</body>
+</html>
